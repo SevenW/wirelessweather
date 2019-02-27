@@ -39,8 +39,10 @@ To install the wheatherstation sketch
 Use:
 The amount of information printed can be controlled by setting some #defines 
 in the first view lines of the weatherstationFSKv2.ino:
+```
     //Define the printed output
     //#define LOGRAW 1 //comment = disable, uncomment = enable logging received package group_id 212 (0xD4)
     //#define LOGPKT 1 //comment = disable, uncomment = enable logging unique package passing crc
     #define LOGDCF 1 //comment = disable, uncomment = enable updating time and logging of DCF77 values
     #define LOGDAT 1 //comment = disable, uncomment = enable logging of parsed sensor data
+```
