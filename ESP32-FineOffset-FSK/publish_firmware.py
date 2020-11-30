@@ -1,0 +1,1 @@
+../esp32-secure-base-v3/publish_firmware.py
