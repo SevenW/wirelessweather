@@ -266,12 +266,13 @@ public:
         //original code had windspeedcorrectionfactor = 1.12.
         //calibration revelaed that windspeed was reported factor 1.27 too high
         //new windspeedcorrectionfactor = 1.12 / 1.27 = 0.88.
-        //1/1.12 = 0.89, close to calibrated 0.88. Was origina factor applied wrongly?
-        //windspeed = (((buf[3] & 0x10) << 4) | buf[6]) * 1.12 * 0.125 * 3.6;
-        windspeed = (((buf[3] & 0x10) << 4) | buf[6]) * 0.88 * 0.125 * 3.6;
+        //1/1.12 = 0.89, close to calibrated 0.88. Was original factor applied wrongly?
+        windspeed = (((buf[3] & 0x10) << 4) | buf[6]) * 1.12 * 0.125 * 3.6;
+        //windspeed correction is applied in stationconfig.h
+        //windspeed = (((buf[3] & 0x10) << 4) | buf[6]) * 0.88 * 0.125 * 3.6;
         //wind gust in km/h
-        //windgust = buf[7] * 1.22 * 3.6;
-        windgust = buf[7] * 0.88 * 3.6;
+        windgust = buf[7] * 1.12 * 3.6;
+        //windgust = buf[7] * 0.88 * 3.6;
         //rainfall
         rain = ((buf[8] << 8) | buf[9]) * 0.3;
         //uv intensity

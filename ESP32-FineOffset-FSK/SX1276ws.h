@@ -225,8 +225,6 @@ int SX1276ws::readPacket(void *ptr, int len)
     printf("restarting after succesful packet\n");
     restartRx();
 
-    digitalWrite(LED, HIGH);
-
     return (i == 0)
                ? -1
                : i;

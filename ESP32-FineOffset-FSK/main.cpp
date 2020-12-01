@@ -24,6 +24,7 @@
 #include "weather.h"
 #include <WiFiClientSecure.h>
 #include "stationconfig.h"
+#include "SX1276ws.h"
 
 #if defined BOARD_HELTEC
 #include "heltec.h"
@@ -82,16 +83,13 @@
 #define LED_RF LED
 #define LED_MQTT LED
 #define LED_WIFI LED
-#define LED_ON 0
-#define LED_OFF 1
+#define LED_ON 1
+#define LED_OFF 0
 
 #else
 
 #error "Board is not defined"
 #endif
-
-//include here as it needs LED
-#include "SX1276ws.h"
 
 SPIClass spi;
 SX1276ws radio(spi, RF_SS, RF_RESET); // ss and reset pins
@@ -159,7 +157,15 @@ void onMqttMessage(char *topic, char *payload, MqttProps properties,
         wsConfig.add(payload);
     }
 
-    digitalWrite(LED_WIFI, LED_ON);
+    // Handle weather station config messages
+    if (strlen(topic) == mqTopicLen + 9 && len == total &&
+        strncmp(topic, mqTopic, mqTopicLen) == 0 &&
+        strcmp(topic + mqTopicLen, "/wsdelete") == 0)
+    {
+        wsConfig.remove(payload);
+    }
+
+    digitalWrite(LED_MQTT, LED_ON);
     mqttLed = millis();
 }
 
@@ -177,6 +183,11 @@ void onMqttConnect(bool sessionPresent)
     strcat(topic, "/wsconfig");
     mqttClient.subscribe(topic, 1);
     printf("Subscribed to %s for configuration of report out of weather stations\n", topic);
+
+    strncpy(topic, mqTopic, 32);
+    strcat(topic, "/wsdelete");
+    mqttClient.subscribe(topic, 1);
+    printf("Subscribed to %s for deleting a reporting weather stations\n", topic);
 }
 
 void publishWS(const char *payload)
@@ -186,9 +197,10 @@ void publishWS(const char *payload)
     strcat(topic, "/ws");
     uint16_t id = mqttClient.publish(topic, 1, false, payload);
     printf("MQTT %d %s %s\n", id, topic, payload);
+    mqttTxNum++;
 }
 
-uint32_t rfTxNum = 0, rfRxNum = 0;
+uint32_t rfRxNum = 0;
 
 boolean UploadToWebAPI(const char *host, int httpsPort, bool secure, const char *url)
 {
@@ -731,7 +743,7 @@ void loop()
 
     if (mqttLed != 0 && millis() - mqttLed > 200)
     {
-        digitalWrite(LED_WIFI, LED_OFF);
+        digitalWrite(LED_MQTT, LED_OFF);
         mqttLed = 0;
     }
 

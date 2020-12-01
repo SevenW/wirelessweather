@@ -28,6 +28,7 @@ struct WSSetting
     //serializeable for MQTT station configuration
     uint16_t wsID;
     uint16_t wsType;
+    double windfactor;
     bool wunderground;
     char wuID[10];
     char wuPW[10];
@@ -47,7 +48,9 @@ struct WSSetting
     char wgUID[40];
     char wgPW[20];
 
-    WSSetting() : mreportable(false), wsID(0xffff), wsType(0xffff),
+    WSSetting() : mreportable(false), 
+                  wsID(0xffff), wsType(0xffff),
+                  windfactor(1.0),
                   wunderground(false),
                   domoticz(false),
                   dzPort(0),
@@ -74,7 +77,6 @@ struct WSSetting
 
         lastReported = millis() - 60000;
         lastSeen = millis() - 60000;
-        //burstStart = millis();
 
         //initialize to base object
         wsp = new WSBase();
@@ -94,6 +96,7 @@ struct WSSetting
     {
         wsID = ojson["wsID"] | 0xffff;
         wsType = ojson["wsType"] | 0xffff;
+        windfactor = ojson["windfactor"] | 1.0;
         wunderground = ojson["wunderground"] | false;
         strncpy(wuID, ojson["wuID"] | "", sizeof(wuID));
         strncpy(wuPW, ojson["wuPW"] | "", sizeof(wuPW));
@@ -131,6 +134,7 @@ struct WSSetting
     {
         ojson["wsID"] = wsID;
         ojson["wsType"] = wsType;
+        ojson["windfactor"] = windfactor;
         ojson["wunderground"] = wunderground;
         ojson["wuID"] = wuID;
         ojson["wuPW"] = wuPW;
@@ -287,6 +291,10 @@ struct WSSetting
     {
         //copy data to this station
         *wsp = *data;
+        //apply calibration factors
+        wsp->windspeed *= windfactor;
+        wsp->windgust *= windfactor;
+
         mreportable = true;
         lastSeen = millis();
 
@@ -605,8 +613,11 @@ public:
         if (idx < MAX_WS)
         {
             printf("WSConfig::remove: station remove at at index %d\n", idx);
+            if (stations[idx].wsp)
+                delete stations[idx].wsp;
             WSSetting emptyWS;
             stations[idx] = emptyWS;
+            save();
         }
         else
         {
