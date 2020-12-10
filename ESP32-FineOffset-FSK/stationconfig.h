@@ -82,8 +82,17 @@ struct WSSetting
         wsp = new WSBase();
     };
 
+    virtual ~WSSetting() {
+        // if (wsp) {
+        //     delete wsp;
+        //     wsp = nullptr;
+        // }
+    }
+
     virtual bool reportable()
     {
+        printf("WSSettings reportable()\n");
+        
         if (mreportable)
         {
             mreportable = false;
@@ -290,7 +299,11 @@ struct WSSetting
     virtual void update(WSBase *data, uint8_t *pktbuf)
     {
         //copy data to this station
+        printf("wsp ptr %d\n", wsp);
         *wsp = *data;
+        printf("wsp ptr %d\n", wsp);
+        printf("data size %d\n", sizeof(*data));
+
         //apply calibration factors
         wsp->windspeed *= windfactor;
         wsp->windgust *= windfactor;
@@ -357,19 +370,19 @@ struct WSSetting
     }
 };
 
-struct WSUnknown : public WSBase, public WSSetting
+struct WSUnknown : public WSSetting //public WSBase, public WSSetting
 {
     //nothing to override right now
     WSUnknown(){};
 };
 
-struct WSBR1800 : public BR1800, public WSSetting
+struct WSBR1800 : public WSSetting //public BR1800, public WSSetting
 {
     //nothing to override right now
     WSBR1800(){};
 };
 
-struct WSWH1080 : public WH1080, public WSSetting
+struct WSWH1080 : public WSSetting //public WH1080, public WSSetting
 {
     //transmissions are a burst of up to 6 identical messages
     //unsigned long burstStart;
@@ -380,6 +393,7 @@ struct WSWH1080 : public WH1080, public WSSetting
 
     WSWH1080()
     {
+        printf("WSWH1080()\n");
         mreportable = false;
         //burstStart = millis();
     }
@@ -415,6 +429,8 @@ struct WSWH1080 : public WH1080, public WSSetting
     
     virtual bool reportable()
     {
+        printf("WH1080 reportable()\n");
+        
         if (mreportable && lastSeen - millis() > 200)
         {
             //decide which response is the correct
@@ -454,8 +470,8 @@ public:
 
     WSConfigTest()
     {
-        ws.wsID = 0x3C;
-        ws.wsType = 0x24;
+        ws.wsID = 0x2C; //0x3C;
+        ws.wsType = 40; //0x24;
         ws.wunderground = true;
         strncpy(ws.wuID, "wuUserId", sizeof(ws.wuID));
         strncpy(ws.wuPW, "wuPassWd", sizeof(ws.wuPW));
@@ -521,14 +537,14 @@ class WSConfig
 public:
     // Configuration parameters that need to remain allocated for the duration of the app because
     // other classes, such as .... rely on that.
-    WSSetting stations[MAX_WS];
+    WSSetting *stations[MAX_WS];
 
     WSConfig()
         : initialized(false)
     {
         for (int i = 0; i < MAX_WS; i++)
         {
-            stations[i] = WSSetting();
+            stations[i] = new WSSetting();
         }
     }
 
@@ -536,7 +552,7 @@ public:
     {
         for (int i = 0; i < MAX_WS; i++)
         {
-            if (stations[i].wsType == wsType && stations[i].wsID == wsID)
+            if (stations[i]->wsType == wsType && stations[i]->wsID == wsID)
                 return i;
         }
         return 0xff;
@@ -545,7 +561,7 @@ public:
     WSSetting *lookup(uint16_t wsType, uint16_t wsID)
     {
         uint8_t idx = ilookup(wsType, wsID);
-        return (idx < MAX_WS) ? &stations[idx] : nullptr;
+        return (idx < MAX_WS) ? stations[idx] : nullptr;
     };
 
     void add(String sjson)
@@ -574,29 +590,40 @@ public:
             }
         }
 
-        WSBase *WS;
+        WSSetting *WSS;
         switch (newWS.wsType)
         {
         case 0x24:
         {
-            WS = new WSBR1800();
+            WSBR1800 *WS = new WSBR1800();
+            if (WS->wsp)
+                delete WS->wsp;
+            WS->wsp = new BR1800();
+            WSS = WS;
             break;
         }
         case 0x28:
         case 0x2A:
         {
-            WS = new WSWH1080();
+            WSWH1080 *WS = new WSWH1080();
+            if (WS->wsp)
+                delete WS->wsp;
+            WS->wsp = new WH1080();
+            WSS = WS;
             break;
         }
         default:
-            WS = new WSUnknown();
+            WSUnknown *WS = new WSUnknown();
+            WSS = WS;
         }
         printf("1\n");
-        delete stations[idx].wsp;
+        //delete stations[idx]->wsp;
+        if (stations[idx])
+            delete stations[idx];
         printf("2\n");
-        stations[idx] = newWS;
+        stations[idx] = WSS;
         printf("3\n");
-        stations[idx].wsp = WS;
+        //stations[idx]->wsp = WSB;
         save();
     };
 
@@ -613,10 +640,12 @@ public:
         if (idx < MAX_WS)
         {
             printf("WSConfig::remove: station remove at at index %d\n", idx);
-            if (stations[idx].wsp)
-                delete stations[idx].wsp;
-            WSSetting emptyWS;
-            stations[idx] = emptyWS;
+            //if (stations[idx]->wsp)
+            //    delete stations[idx]->wsp;
+            //WSSetting emptyWS;
+            if (stations[idx])
+                delete stations[idx];
+            stations[idx] = new WSSetting(); //emptyWS;
             save();
         }
         else
@@ -634,10 +663,10 @@ public:
 
         for (int i = 0; i < MAX_WS; i++)
         {
-            printf("%d, type %d\n", stations[i].wsID, stations[i].wsType);
+            printf("%d, type %d\n", stations[i]->wsID, stations[i]->wsType);
             JsonObject ojson = json.createNestedObject();
-            stations[i].serialize(ojson); //Populate the JsonObject
-            printf("%d, type %d-ex\n", stations[i].wsID, stations[i].wsType);
+            stations[i]->serialize(ojson); //Populate the JsonObject
+            printf("%d, type %d-ex\n", stations[i]->wsID, stations[i]->wsType);
         }
 
         printf("going to open stationconfig file\n");
@@ -719,8 +748,8 @@ public:
 
             for (int i = 0; i < MAX_WS; i++)
             {
-                stations[i].deserialize(json[i].as<JsonObject>());
-                printf("reportable after deserialize %d", stations[i].mreportable);
+                stations[i]->deserialize(json[i].as<JsonObject>());
+                printf("reportable after deserialize %d", stations[i]->mreportable);
             };
 
             //printf("Config restored: MQTT<%s,%s;%s,%s...> AP<%s>\n",

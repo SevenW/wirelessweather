@@ -11,7 +11,7 @@
 // The above rporting is configurable over MQTT
 // OTA flash updates announced over MQTT
 //
-// 
+//
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -29,7 +29,6 @@
 #if defined BOARD_HELTEC
 #include "heltec.h"
 #endif
-
 
 //===== I/O pins/devices
 
@@ -278,6 +277,61 @@ boolean UploadToWebAPI(const char *host, int httpsPort, bool secure, const char 
     // return Status;
 }
 
+void displayTest()
+{
+#if defined BOARD_HELTEC
+    //clear full display
+    Heltec.display->clear();
+
+    ////partial clear display
+    //Heltec.display->setColor(BLACK);
+    //Heltec.display->fillRect(0, 0, 128, 20);
+    //Heltec.display->setColor(WHITE);
+
+    Heltec.display->setTextAlignment(TEXT_ALIGN_RIGHT);
+    Heltec.display->setFont(ArialMT_Plain_24);
+
+    Heltec.display->drawString(43, 0, "144");
+    Heltec.display->drawString(94, 0, "100");
+    Heltec.display->drawString(128, 0, "12");
+
+    Heltec.display->setFont(ArialMT_Plain_10);
+
+    Heltec.display->drawString(41, 22, "km/h");
+    Heltec.display->drawString(92, 22, "knots");
+    Heltec.display->drawString(126, 22, "bft");
+
+    Heltec.display->setFont(ArialMT_Plain_24);
+
+    Heltec.display->drawString(128, 32, "-2.5°C");
+
+    Heltec.display->setTextAlignment(TEXT_ALIGN_LEFT);
+
+    Heltec.display->drawString(0, 27, "www");
+
+    Heltec.display->setFont(ArialMT_Plain_16);
+    Heltec.display->drawString(0, 49, "«360»");
+
+    Heltec.display->setTextAlignment(TEXT_ALIGN_RIGHT);
+
+    bool conn = WiFi.isConnected();
+    bool mqConn = mqttClient.connected();
+    String statusmsg = "";
+    if (conn)
+        statusmsg += "wifi ok ";
+    else
+        statusmsg += "wifi nk ";
+    if (mqConn)
+        statusmsg += "mq 2435";
+    else
+        statusmsg += "mq 2435";
+
+    Heltec.display->setFont(ArialMT_Plain_10);
+    Heltec.display->drawString(128, 54, statusmsg);
+    Heltec.display->display();
+#endif
+}
+
 void displayStale()
 {
 #if defined BOARD_HELTEC
@@ -318,12 +372,19 @@ void displayStale()
 #endif
 }
 
+int beaufort(double windspeed)
+{
+    double bft_kmh[] = {0.999, 5.5, 11.5, 19.5, 28.5, 38.5, 49.5, 61.5, 74.5, 88.5, 102.5, 117.5, 1000};
+
+    int bft = 0;
+    while (bft < 13 && bft_kmh[bft] < windspeed)
+        ++bft;
+    return bft;
+}
+
 void display(WSBase *wsp)
 {
 #if defined BOARD_HELTEC
-    static bool alt = true;
-    alt = !alt;
-    
     //clear full display
     Heltec.display->clear();
 
@@ -332,49 +393,119 @@ void display(WSBase *wsp)
     //Heltec.display->fillRect(0, 0, 128, 20);
     //Heltec.display->setColor(WHITE);
 
+    Heltec.display->setTextAlignment(TEXT_ALIGN_RIGHT);
     Heltec.display->setFont(ArialMT_Plain_24);
 
     char oledmsg[60];
-    if (alt)
-        sprintf(oledmsg, "%2.1fkt", (0.540 * wsp->windspeed));
+    double value = wsp->windspeed;
+    if (value > 19.95)
+        sprintf(oledmsg, "%ld", lround(value));
     else
-        sprintf(oledmsg, "%2.1fkm", wsp->windspeed);
-    Heltec.display->drawString(0, 0, oledmsg);
+        sprintf(oledmsg, "%2.1f", value);
+    Heltec.display->drawString(43, 0, oledmsg);
 
-    if (alt)
-        sprintf(oledmsg, "%3d°", wsp->winddir);
+    value = 0.540 * wsp->windspeed;
+    if (value > 19.95)
+        sprintf(oledmsg, "%ld", lround(value));
     else
-    {
-        //const char *compass[] = {"N  ", "NNO", "NO ", "ONO", "O  ", "OZO", "ZO ", "ZZO", "Z  ", "ZZW", "ZW ", "WZW", "W  ", "WNW", "NW ", "NNW"};
-        const char *compass[] = {"n  ", "nno", "no ", "ono", "o  ", "ozo", "zo ", "zzo", "z  ", "zzw", "zw ", "wzw", "w  ", "wnw", "nw ", "nnw"};
+        sprintf(oledmsg, "%2.1f", value);
+    Heltec.display->drawString(94, 0, oledmsg);
 
-        sprintf(oledmsg, "%3s", compass[((4*wsp->winddir+45)/90) & 0x0F]);
-    }
-    
-    
-    Heltec.display->drawString(80, 0, oledmsg);
-
-    sprintf(oledmsg, "%2.1f°C  %2d%%", wsp->temperature, wsp->humidity);
-    Heltec.display->drawString(0, 24, oledmsg);
-
-    sprintf(oledmsg, "%02X%02X ", (wsp->msgformat & 0xFF), (wsp->stationID & 0xFF));
-    printf("%s\n",oledmsg);
-
-    bool conn = WiFi.isConnected();
-    bool mqConn = mqttClient.connected();
-    String statusmsg = oledmsg;
-    if (conn)
-        statusmsg += "WIFI OK, ";
-    else
-        statusmsg += "WIFI --, ";
-    if (mqConn)
-        statusmsg += "MQTT OK";
-    else
-        statusmsg += "MQTT --";
+    sprintf(oledmsg, "%ld", beaufort(wsp->windspeed));
+    Heltec.display->drawString(128, 0, oledmsg);
 
     Heltec.display->setFont(ArialMT_Plain_10);
-    Heltec.display->drawString(0, 54, statusmsg);
+
+    Heltec.display->drawString(41, 22, "km / h");
+    Heltec.display->drawString(92, 22, "knopen");
+    Heltec.display->drawString(126, 22, "bft");
+
+    Heltec.display->setFont(ArialMT_Plain_24);
+
+    sprintf(oledmsg, "%2.1f°C", wsp->temperature);
+    Heltec.display->drawString(128, 32, oledmsg);
+
+    Heltec.display->setTextAlignment(TEXT_ALIGN_LEFT);
+
+    const char *compass[] = {"n  ", "nno", "no ", "ono", "o  ", "ozo", "zo ", "zzo", "z  ", "zzw", "zw ", "wzw", "w  ", "wnw", "nw ", "nnw"};
+    sprintf(oledmsg, "%3s", compass[((4 * wsp->winddir + 45) / 90) & 0x0F]);
+    Heltec.display->drawString(0, 27, oledmsg);
+
+    Heltec.display->setFont(ArialMT_Plain_16);
+    sprintf(oledmsg, "«%3d»", wsp->winddir);
+    Heltec.display->drawString(0, 49, oledmsg);
+
+    Heltec.display->setTextAlignment(TEXT_ALIGN_RIGHT);
+    Heltec.display->setFont(ArialMT_Plain_10);
+
+    sprintf(oledmsg, "%02X%02X ", (wsp->msgformat & 0xFF), (wsp->stationID & 0xFF));
+    bool conn = WiFi.isConnected();
+    bool mqConn = mqttClient.connected();
+    String statusmsg = "";
+    if (conn)
+        statusmsg += "wifi ok mq ";
+    else
+        statusmsg += "wifi xx mq ";
+    if (mqConn)
+        statusmsg += oledmsg;
+    else
+        statusmsg += "xxxx";
+    Heltec.display->drawString(128, 54, statusmsg);
     Heltec.display->display();
+
+    // static bool alt = true;
+    // alt = !alt;
+
+    // //clear full display
+    // Heltec.display->clear();
+
+    // ////partial clear display
+    // //Heltec.display->setColor(BLACK);
+    // //Heltec.display->fillRect(0, 0, 128, 20);
+    // //Heltec.display->setColor(WHITE);
+
+    // Heltec.display->setFont(ArialMT_Plain_24);
+
+    // char oledmsg[60];
+    // if (alt)
+    //     sprintf(oledmsg, "%2.1fkt", (0.540 * wsp->windspeed));
+    // else
+    //     sprintf(oledmsg, "%2.1fkm", wsp->windspeed);
+    // Heltec.display->drawString(0, 0, oledmsg);
+
+    // if (alt)
+    //     sprintf(oledmsg, "%3d°", wsp->winddir);
+    // else
+    // {
+    //     //const char *compass[] = {"N  ", "NNO", "NO ", "ONO", "O  ", "OZO", "ZO ", "ZZO", "Z  ", "ZZW", "ZW ", "WZW", "W  ", "WNW", "NW ", "NNW"};
+    //     const char *compass[] = {"n  ", "nno", "no ", "ono", "o  ", "ozo", "zo ", "zzo", "z  ", "zzw", "zw ", "wzw", "w  ", "wnw", "nw ", "nnw"};
+
+    //     sprintf(oledmsg, "%3s", compass[((4 * wsp->winddir + 45) / 90) & 0x0F]);
+    // }
+
+    // Heltec.display->drawString(80, 0, oledmsg);
+
+    // sprintf(oledmsg, "%2.1f°C  %2d%%", wsp->temperature, wsp->humidity);
+    // Heltec.display->drawString(0, 24, oledmsg);
+
+    // sprintf(oledmsg, "%02X%02X ", (wsp->msgformat & 0xFF), (wsp->stationID & 0xFF));
+    // printf("%s\n", oledmsg);
+
+    // bool conn = WiFi.isConnected();
+    // bool mqConn = mqttClient.connected();
+    // String statusmsg = oledmsg;
+    // if (conn)
+    //     statusmsg += "WIFI OK, ";
+    // else
+    //     statusmsg += "WIFI --, ";
+    // if (mqConn)
+    //     statusmsg += "MQTT OK";
+    // else
+    //     statusmsg += "MQTT --";
+
+    // Heltec.display->setFont(ArialMT_Plain_10);
+    // Heltec.display->drawString(0, 54, statusmsg);
+    // Heltec.display->display();
 #endif
 }
 
@@ -418,7 +549,7 @@ void rfLoop(bool mqConn)
     for (int i = 0; i < MAX_WS; i++)
     {
         printf("Reporting %d\n", i);
-        WSSetting *thisStation = &wsConfig.stations[i];
+        WSSetting *thisStation = wsConfig.stations[i];
         printf("ptr %d\n", thisStation);
         if (thisStation && thisStation->reportable())
         {
@@ -494,7 +625,8 @@ void rfLoop(bool mqConn)
     //clear display when no recent data is received.
     struct timeval tvnow;
     gettimeofday(&tvnow, NULL);
-    if (tvnow.tv_sec - lastWSts > 300) {
+    if (tvnow.tv_sec - lastWSts > 300)
+    {
         displayStale();
     }
 }
@@ -525,7 +657,6 @@ void report()
     mqttClient.publish(topic, 1, false, buf, len, false);
     //printf("JSON: %s\n", buf);
 }
-
 
 //DEBUG wifi disconencts
 void WiFiEvent(WiFiEvent_t event, system_event_info_t info)
@@ -583,6 +714,7 @@ void setup()
     printf("Running ESP-IDF %s\n", ESP.getSdkVersion());
     printf("Board type: %s\n", ARDUINO_BOARD);
 
+    displayTest();
 
     config.read(); // read config file from flash
     cmd.init();    // init CLI
@@ -597,7 +729,6 @@ void setup()
 
     WiFi.mode(WIFI_STA); // start getting wifi to connect
     WiFi.begin();
-
 
     setenv("TZ", "UTC-01:00", 1);
     tzset();
@@ -637,19 +768,19 @@ void setup()
     delay(200);
 
     // //TODO: Remove this testcode
-    // printf("stationconfig constr\n");
-    // WSConfigTest myTest; //should print some json text
+    printf("stationconfig constr\n");
+    WSConfigTest myTest; //should print some json text
     // printf("stationconfig test\n");
-    // myTest.test();
+    myTest.test();
 
-    // String firstStation = myTest.ws.serialize();
+    String firstStation = myTest.ws.serialize();
     // //WSConfig wsConfig;
 
     // //Load the weather station configuration from flash memory
-    // wsConfig.load();
+    wsConfig.load();
 
     // //for the moment update settings first entry from  stationconfig.h
-    // wsConfig.add(firstStation);
+    wsConfig.add(firstStation);
 
     // printf("wsconfig setup code\n");
 

@@ -346,7 +346,9 @@ public:
     {
         //char *compass[] = {"N  ", "NNE", "NE ", "ENE", "E  ", "ESE", "SE ", "SSE", "S  ", "SSW", "SW ", "WSW", "W  ", "WNW", "NW ", "NNW"};
         // station id
-        stationID = (sbuf[0] << 4) | (sbuf[1] >> 4);
+        stationID = ((sbuf[0] & 0x0F) << 4) | (sbuf[1] >> 4);
+        printf("%d\n\n", stationID);
+
         // temperature in C
         uint8_t sign = (sbuf[1] >> 3) & 1;
         int16_t temp = ((sbuf[1] & 0x07) << 8) | sbuf[2];
@@ -387,6 +389,7 @@ public:
     virtual void print()
     {
         char fstr[30];
+        printf("%d\n\n", stationID);
         printf("ID: %02x, ", stationID);
         printf("T=%8s°C, ", ftoa(temperature, fstr, 1));
         printf("relH=%3d%%, ", humidity);
@@ -534,8 +537,8 @@ public:
                 }
                 break;
             }
-            case 0xA:
-            case 0xB:
+            case 0x0A:
+            case 0x0B:
             {
                 crc_ok = buf[9] == _crc8(&buf[0], 9);
                 if (crc_ok)
