@@ -1,10 +1,7 @@
 //template <typename SPI>
 class SX1276ws : public SX1276fsk
 {
-    //uint8_t myId;
-    //uint8_t parity;
-
-    //This can be removed when puul request to tve is accepted.
+    //This can be removed when pull request to tve is accepted.
     enum
     {
         IRQ2_FIFOEMPTY = 1 << 6
@@ -61,7 +58,7 @@ void SX1276ws::init(uint8_t id, uint8_t group, int freq)
 
     this->restartRx();
 
-    printf("init done\n");
+    printf("SX1276ws init done\n");
 }
 
 int SX1276ws::receive(void *ptr, int len)
@@ -161,20 +158,7 @@ int SX1276ws::readPacket(void *ptr, int len)
         rxAt.tv_sec = 0;
         rxAt.tv_usec = 0;
     }
-    // With polling IRQ1Flags this accuracy is not reached
-    // else
-    // {
-    //     // adjust current time for the delta since we saw the RX interrupt
-    //     rxAt.tv_sec -= dt / 1000000;
-    //     rxAt.tv_usec -= dt % 1000000;
-    //     while (rxAt.tv_usec < 0)
-    //     {
-    //         rxAt.tv_usec += 1000000;
-    //         rxAt.tv_sec--;
-    //     }
-    // }
 
-    //delay(10); //wait for the packet?
     //printf("ÏRQ2 %02x", (this->readReg(this->REG_IRQFLAGS2)));
     int i = 0;
     while (!(this->readReg(this->REG_IRQFLAGS2) & this->IRQ2_FIFOEMPTY))
@@ -189,54 +173,10 @@ int SX1276ws::readPacket(void *ptr, int len)
     }
     printf("\n");
 
-    /*
-    spi.beginTransaction(spiSettings);
-    digitalWrite(ss, LOW);
-    spi.write(REG_FIFO);
-
-    uint8_t count = spi.transfer(0); // first byte of packet is length
-    if (count <= len)
-    {
-        spi.transferBytes((uint8_t *)ptr, (uint8_t *)ptr, count);
-    }
-    else
-    {
-        spi.transferBytes((uint8_t *)ptr, (uint8_t *)ptr, len);
-        for (int i = len; i < count; i++)
-            spi.transfer(0);
-    }
-    digitalWrite(ss, HIGH);
-    spi.endTransaction();
-    */
-
-    // This work is done by restartRx();
-    // // flag stale RSSI
-    // if (micros() - rssiAt > 60000)
-    // {
-    //     printf("!RSSI stale:%ldus!", micros() - rssiAt);
-    //     rssi = 0;
-    //     snr = 0;
-    //     afc = 0;
-    //     lna = 0;
-    // }
-    // need to restartRX to get proper fresh AFC/AGC
-    //uint32_t dt2 = micros() - intr0At;
-    //printf("!RX:%luus:%luus!", dt, micros()-intr0At);
     printf("restarting after succesful packet\n");
     restartRx();
 
     return (i == 0)
                ? -1
                : i;
-
-    // // only accept packets intended for us, or broadcasts
-    // // ... or any packet if we're the special catch-all node
-    // uint8_t dest = *(uint8_t *)ptr;
-    // if ((dest & 0xC0) == parity)
-    // {
-    //     uint8_t destId = dest & 0x3F;
-    //     if (destId == myId || destId == 0 || myId == 63)
-    //         return count;
-    // }
-    // return -1;
 }

@@ -15,7 +15,6 @@ struct WSSetting
 {
     unsigned long lastReported; //not serialized
     unsigned long lastSeen;     //not serialized
-    //WSBase ws;
     WSBase *wsp;
     std::map<time_t, double> rainhist;
     std::map<time_t, double> windhist;
@@ -23,7 +22,6 @@ struct WSSetting
 
     //burst handling for WSWH1080 derived class
     bool mreportable;
-    //unsigned long burstStart;
 
     //serializeable for MQTT station configuration
     uint16_t wsID;
@@ -46,7 +44,7 @@ struct WSSetting
     bool windguru;
     char wgSalt[40];
     char wgUID[40];
-    char wgPW[20];
+    char wgPW[40];
 
     WSSetting() : mreportable(false), 
                   wsID(0xffff), wsType(0xffff),
@@ -91,8 +89,7 @@ struct WSSetting
 
     virtual bool reportable()
     {
-        printf("WSSettings reportable()\n");
-        
+        //printf("WSSetting::reportable()\n");       
         if (mreportable)
         {
             mreportable = false;
@@ -162,9 +159,7 @@ struct WSSetting
         ojson["wgSalt"] = wgSalt;
         ojson["wgUID"] = wgUID;
         ojson["wgPW"] = wgPW;
-
-        const char *cstr = ojson["dzURL"];
-        printf("debug1 serialize ojson %s from %s\n", cstr, dzURL);
+        
         return;
     }
 
@@ -183,7 +178,7 @@ struct WSSetting
     virtual std::string urlWunderground(const char *wuID, const char *wuPW)
     {
         //https://support.weather.com/s/article/PWS-Upload-Protocol?language=en_US
-        //https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?ID=ISHERT38&PASSWORD=jHfIiiya&dateutc=now&tempf=37.8&humidity=1&action=updateraw
+        //https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?ID=<StationID>>&PASSWORD=<StationPW>&dateutc=now&tempf=37.8&humidity=1&action=updateraw
         std::string s;
         return s + "/weatherstation/updateweatherstation.php?ID=" + wuID +
                "&PASSWORD=" + wuPW +
@@ -274,10 +269,10 @@ struct WSSetting
     virtual std::string urlWindguru(const char *wgUID, const char *wgPW)
     {
         ///upload/api.php?uid=stationXY&salt=20180214171400&hash=c9441d30280f4f6f4946fe2b2d360df5&wind_avg=12.5&wind_dir=165&temperature=20.5
-        std::string salt = std::to_string(millis());
         //std::string salt = "20180214171400";
-        std::string key = salt + wgUID + wgPW;
         //std::string key =  "20180214171400stationXYsupersecret"; //test string gives MD5: c9441d30280f4f6f4946fe2b2d360df5
+        std::string salt = "@ABC" + std::to_string(millis()) + "XYZ@";
+        std::string key = salt + wgUID + wgPW;
         char *key2 = const_cast<char *>(key.c_str());
         unsigned char *hash = MD5::make_hash(key2);
         char *md5hash = MD5::make_digest(hash, 16);
@@ -293,16 +288,13 @@ struct WSSetting
                "&wind_max=" + std::to_string(0.540 * wsp->windgust1m) +
                "&wind_direction=" + std::to_string(wsp->winddir) +
                "&temperature=" + std::to_string(wsp->temperature);
-        //"&rh=" + std::to_string(wsp->humidity);
+               //"&rh=" + std::to_string(wsp->humidity); //Humidity can be reported, but particular WS is unreliable with RH.
     }
 
     virtual void update(WSBase *data, uint8_t *pktbuf)
     {
         //copy data to this station
-        printf("wsp ptr %d\n", wsp);
         *wsp = *data;
-        printf("wsp ptr %d\n", wsp);
-        printf("data size %d\n", sizeof(*data));
 
         //apply calibration factors
         wsp->windspeed *= windfactor;
@@ -311,9 +303,9 @@ struct WSSetting
         mreportable = true;
         lastSeen = millis();
 
-        printf("Station updated T=%fC\n", wsp->temperature);
-        wsp->printtype();
-        data->printtype();
+        //printf("Station updated T=%fC\n", wsp->temperature);
+        //wsp->printtype();
+        //data->printtype();
 
         //update last hour rain
         double rainprevhour = data->rain;
@@ -324,12 +316,12 @@ struct WSSetting
             //do not use stale data
             if (it->first > data->at.tv_sec - 7200)
                 rainprevhour = it->second;
-            printf("rainloop %ld,%f\n", it->first, it->second);
+            //printf("rainloop %ld,%f\n", it->first, it->second);
             it = rainhist.erase(it);
         }
         wsp->rain1h = data->rain - rainprevhour;
-        printf("rainhist size %d\n", rainhist.size());
-        printf("rain1h %f\n", wsp->rain1h);
+        //printf("rainhist size %d\n", rainhist.size());
+        //printf("rain1h %f\n", wsp->rain1h);
 
         //calculate average windspeed for last minute
         int count = 0;
@@ -338,7 +330,7 @@ struct WSSetting
         it = windhist.begin();
         while (it != windhist.end())
         {
-            printf("windloop %ld,%f\n", it->first, it->second);
+            //printf("windloop %ld,%f\n", it->first, it->second);
             if (it->first < data->at.tv_sec - 60)
                 it = windhist.erase(it);
             else
@@ -349,7 +341,7 @@ struct WSSetting
             }
         }
         wsp->windspeed1m = windsum / count;
-        printf("windspeed1m %f\n", wsp->windspeed1m);
+        //printf("windspeed1m %f\n", wsp->windspeed1m);
 
         //calculate max windgust for last minute
         wsp->windgust1m = 0;
@@ -366,26 +358,38 @@ struct WSSetting
                 ++it;
             }
         }
-        printf("windmax1m %f\n", wsp->windgust1m);
+        //printf("windmax1m %f\n", wsp->windgust1m);
     }
 };
 
 struct WSUnknown : public WSSetting //public WSBase, public WSSetting
 {
     //nothing to override right now
-    WSUnknown(){};
+    WSUnknown(){
+        printf("WSUnknown()\n");
+    };
+};
+
+struct WSUnknownFineOffset : public WSSetting
+{
+    //nothing to override right now
+    WSUnknownFineOffset(){
+        printf("WSUnknown()\n");
+        };
 };
 
 struct WSBR1800 : public WSSetting //public BR1800, public WSSetting
 {
     //nothing to override right now
-    WSBR1800(){};
+    WSBR1800()
+    {
+        printf("WSBR1800()\n");
+    };
 };
 
 struct WSWH1080 : public WSSetting //public WH1080, public WSSetting
 {
     //transmissions are a burst of up to 6 identical messages
-    //unsigned long burstStart;
     char packets[6][10];
     unsigned long ts[6];
     int equal[6];
@@ -395,7 +399,6 @@ struct WSWH1080 : public WSSetting //public WH1080, public WSSetting
     {
         printf("WSWH1080()\n");
         mreportable = false;
-        //burstStart = millis();
     }
 
     void validatePackets() {
@@ -429,8 +432,7 @@ struct WSWH1080 : public WSSetting //public WH1080, public WSSetting
     
     virtual bool reportable()
     {
-        printf("WH1080 reportable()\n");
-        
+        //printf("WH1080 reportable()\n");
         if (mreportable && lastSeen - millis() > 200)
         {
             //decide which response is the correct
@@ -454,12 +456,6 @@ struct WSWH1080 : public WSSetting //public WH1080, public WSSetting
         strncpy(packets[burstCount], (char *)pktbuf, 9);
         burstCount++;
     }
-};
-
-struct WSUnknownFineOffset : public UnknownFineOffset, public WSSetting
-{
-    //nothing to override right now
-    WSUnknownFineOffset(){};
 };
 
 class WSConfigTest
@@ -504,8 +500,6 @@ public:
         stations[0] = ws;
         stations[1] = wsdes;
 
-        const int capacity = JSON_ARRAY_SIZE(MAX_WS) + JSON_OBJECT_SIZE(10);
-        //DynamicJsonDocument json(2 * capacity);
         DynamicJsonDocument json(4096);
 
         for (int i = 0; i < 2; i++)
@@ -519,7 +513,7 @@ public:
         printf("array: %s\n", sjson.c_str());
 
         DynamicJsonDocument ijson(4096);
-        DeserializationError err = deserializeJson(ijson, sjson);
+        deserializeJson(ijson, sjson);
         WSSetting istations[2];
         for (int i = 0; i < 2; i++)
         {
@@ -616,14 +610,14 @@ public:
             WSUnknown *WS = new WSUnknown();
             WSS = WS;
         }
-        printf("1\n");
-        //delete stations[idx]->wsp;
+
+        WSS->deserialize(sjson);
+
+        if (stations[idx]->wsp)
+            delete stations[idx]->wsp;
         if (stations[idx])
             delete stations[idx];
-        printf("2\n");
         stations[idx] = WSS;
-        printf("3\n");
-        //stations[idx]->wsp = WSB;
         save();
     };
 
@@ -640,9 +634,8 @@ public:
         if (idx < MAX_WS)
         {
             printf("WSConfig::remove: station remove at at index %d\n", idx);
-            //if (stations[idx]->wsp)
-            //    delete stations[idx]->wsp;
-            //WSSetting emptyWS;
+            if (stations[idx]->wsp)
+                delete stations[idx]->wsp;
             if (stations[idx])
                 delete stations[idx];
             stations[idx] = new WSSetting(); //emptyWS;
@@ -669,8 +662,6 @@ public:
             printf("%d, type %d-ex\n", stations[i]->wsID, stations[i]->wsType);
         }
 
-        printf("going to open stationconfig file\n");
-
         File configFile = SPIFFS.open("/stationconfig.json", FILE_WRITE);
         if (!configFile)
         {
@@ -678,10 +669,9 @@ public:
         }
         else
         {
-            printf("going to serialize stationconfig file\n");
             serializeJson(json, configFile);
             configFile.close();
-            printf("serialized stationconfig file\n");
+            printf("Saved stationconfig file\n");
         }
     };
 
@@ -731,9 +721,8 @@ public:
                 return;
             }
 
-            printf("Dumping stationconfig\n\n");
             File cf = SPIFFS.open("/stationconfig.json", FILE_READ);
-            printf("Contents (%d): <<", cf.size());
+            printf("Stationconfig file Contents (%d): <<", cf.size());
             for (int ch = cf.read(); ch != -1; ch = cf.read())
             {
                 if (ch >= ' ' && ch <= '~')
@@ -744,16 +733,10 @@ public:
             printf(">>\n");
             cf.close();
 
-            printf("\n\nDumped stationconfig\n\n");
-
             for (int i = 0; i < MAX_WS; i++)
             {
                 stations[i]->deserialize(json[i].as<JsonObject>());
-                printf("reportable after deserialize %d", stations[i]->mreportable);
             };
-
-            //printf("Config restored: MQTT<%s,%s;%s,%s...> AP<%s>\n",
-            //        mqtt_server, mqtt_port, mqtt_ident, psk, ap_pass);
         }
         else
         {

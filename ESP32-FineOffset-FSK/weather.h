@@ -150,15 +150,6 @@ public:
         afc = rxafc;
     };
 
-    // virtual void print() = 0;
-    // virtual String urlWunderground(const char *wuID, const char *wuPW) = 0;
-    // virtual String urlDomoticzTemp(uint32_t idx, const char *dzID, const char *dzPW) = 0;
-    // virtual String urlDomoticzWind(uint32_t idx, const char *dzID, const char *dzPW) = 0;
-    // virtual String urlDomoticzRain(uint32_t idx, const char *dzID, const char *dzPW) = 0;
-    // virtual String urlDomoticzLight(uint32_t idx, const char *dzID, const char *dzPW) = 0;
-    // virtual String urlDomoticzUV(uint32_t idx, const char *dzID, const char *dzPW) = 0;
-    // virtual String urlWindguru(const char *wgUID, const char *wgSalt, const char *wgHash) =0;
-
     virtual void printtype() {
         printf("Instance of WSBase\n");
     };
@@ -344,11 +335,9 @@ public:
 
     bool decode(uint8_t fmt, uint8_t *sbuf, uint8_t len)
     {
-        //char *compass[] = {"N  ", "NNE", "NE ", "ENE", "E  ", "ESE", "SE ", "SSE", "S  ", "SSW", "SW ", "WSW", "W  ", "WNW", "NW ", "NNW"};
+        //const char *compass[] = {"N  ", "NNE", "NE ", "ENE", "E  ", "ESE", "SE ", "SSE", "S  ", "SSW", "SW ", "WSW", "W  ", "WNW", "NW ", "NNW"};
         // station id
         stationID = ((sbuf[0] & 0x0F) << 4) | (sbuf[1] >> 4);
-        printf("%d\n\n", stationID);
-
         // temperature in C
         uint8_t sign = (sbuf[1] >> 3) & 1;
         int16_t temp = ((sbuf[1] & 0x07) << 8) | sbuf[2];

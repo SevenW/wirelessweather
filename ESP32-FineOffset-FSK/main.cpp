@@ -94,15 +94,9 @@ SPIClass spi;
 SX1276ws radio(spi, RF_SS, RF_RESET); // ss and reset pins
 
 uint8_t rfId = 63; // 61=tx-only node, 63=promisc node
-//uint8_t rfGroup = 178;
-//uint32_t rfFreq = 868000000;
 uint8_t rfGroup = 42;
 uint32_t rfFreq = 868300000;
 int8_t rfPow = 17;
-DV(rfId);
-DV(rfGroup);
-DV(rfFreq);
-DV(rfPow);
 
 uint32_t rfLed = 0;
 uint32_t mqttLed = 0;
@@ -117,12 +111,10 @@ ESBDebug dbg(cmdP);
 
 #define GW_TOPIC "rfgw/reports"
 bool mqttConn = false; // whether mqtt is connected or not
-DV(mqttConn);
-
-//NodeRegistryWorker nrw(mqTopic, GW_TOPIC);
 
 //Singleton instance of WSConfig
 WSConfig wsConfig;
+
 //Singleton class to detect type of weatherstation
 WeatherStationProcessor wsProcessor;
 
@@ -224,27 +216,23 @@ boolean UploadToWebAPI(const char *host, int httpsPort, bool secure, const char 
 
     // Use WiFiClientSecure class to create SSL connection
     printf("Connecting to   : %s\n", host);
-    //Serial.println("Connecting to   : " + String(host));
     if (!client->connect(host, httpsPort))
     {
         Serial.println("Connection failed");
         return false;
     }
     printf("Requesting      : %s\n", url);
-    //Serial.println("Requesting      : " + String(url));
     client->print(String("GET ") + url + " HTTP/1.1\r\n" +
                   "Host: " + host + "\r\n" +
                   "User-Agent: G6EJDFailureDetectionFunction\r\n" +
                   "Connection: close\r\n\r\n");
     printf("Request sent    : ");
-    //Serial.print("Request sent    : ");
     while (client->connected())
     {
         String line = client->readStringUntil('\n');
         if (line == "\r")
         {
            printf("Headers received\n");
-            //Serial.println("Headers received");
             break;
         }
     }
@@ -255,31 +243,12 @@ boolean UploadToWebAPI(const char *host, int httpsPort, bool secure, const char 
     {
         char c = client->read();
         printf("%c", c);
-        //Serial.write(c);
     }
+    printf("\n");
 
     client->stop();
     //delete client;
     return true;
-
-    // String line = client->readStringUntil('\n');
-    // //Serial.println(line);
-
-    // if (line == "success")
-    //     line = "Server confirmed all data received";
-    // if (line == "INVALIDPASSWORDID|Password or key and/or id are incorrect")
-    // {
-    //     line = "Invalid PWS/User data entered in the ID and PASSWORD or GET parameters";
-    //     Status = false;
-    // }
-    // if (line == "RapidFire Server")
-    // {
-    //     line = "The minimum GET parameters of ID, PASSWORD, action and dateutc were not set correctly";
-    //     Status = false;
-    // }
-    // Serial.println("Server Response : " + line);
-    // Serial.println("Status          : Closing connection");
-    // return Status;
 }
 
 void displayTest()
@@ -463,60 +432,6 @@ void display(WSBase *wsp)
         strcat(statusmsg, "xxxx");
     Heltec.display->drawString(128, 54, statusmsg);
     Heltec.display->display();
-
-    // static bool alt = true;
-    // alt = !alt;
-
-    // //clear full display
-    // Heltec.display->clear();
-
-    // ////partial clear display
-    // //Heltec.display->setColor(BLACK);
-    // //Heltec.display->fillRect(0, 0, 128, 20);
-    // //Heltec.display->setColor(WHITE);
-
-    // Heltec.display->setFont(ArialMT_Plain_24);
-
-    // char oledmsg[60];
-    // if (alt)
-    //     sprintf(oledmsg, "%2.1fkt", (0.540 * wsp->windspeed));
-    // else
-    //     sprintf(oledmsg, "%2.1fkm", wsp->windspeed);
-    // Heltec.display->drawString(0, 0, oledmsg);
-
-    // if (alt)
-    //     sprintf(oledmsg, "%3d°", wsp->winddir);
-    // else
-    // {
-    //     //const char *compass[] = {"N  ", "NNO", "NO ", "ONO", "O  ", "OZO", "ZO ", "ZZO", "Z  ", "ZZW", "ZW ", "WZW", "W  ", "WNW", "NW ", "NNW"};
-    //     const char *compass[] = {"n  ", "nno", "no ", "ono", "o  ", "ozo", "zo ", "zzo", "z  ", "zzw", "zw ", "wzw", "w  ", "wnw", "nw ", "nnw"};
-
-    //     sprintf(oledmsg, "%3s", compass[((4 * wsp->winddir + 45) / 90) & 0x0F]);
-    // }
-
-    // Heltec.display->drawString(80, 0, oledmsg);
-
-    // sprintf(oledmsg, "%2.1f°C  %2d%%", wsp->temperature, wsp->humidity);
-    // Heltec.display->drawString(0, 24, oledmsg);
-
-    // sprintf(oledmsg, "%02X%02X ", (wsp->msgformat & 0xFF), (wsp->stationID & 0xFF));
-    // printf("%s\n", oledmsg);
-
-    // bool conn = WiFi.isConnected();
-    // bool mqConn = mqttClient.connected();
-    // String statusmsg = oledmsg;
-    // if (conn)
-    //     statusmsg += "WIFI OK, ";
-    // else
-    //     statusmsg += "WIFI --, ";
-    // if (mqConn)
-    //     statusmsg += "MQTT OK";
-    // else
-    //     statusmsg += "MQTT --";
-
-    // Heltec.display->setFont(ArialMT_Plain_10);
-    // Heltec.display->drawString(0, 54, statusmsg);
-    // Heltec.display->display();
 #endif
 }
 
@@ -559,16 +474,13 @@ void rfLoop(bool mqConn)
     //report updated stations
     for (int i = 0; i < MAX_WS; i++)
     {
-        printf("Reporting %d\n", i);
+        //printf("Reporting station %d\n", i);
         WSSetting *thisStation = wsConfig.stations[i];
-        printf("ptr %d\n", thisStation);
         if (thisStation && thisStation->reportable())
         {
-            printf("reportable\n");
             //report succesful packets on MQTT, but at most one per WH1080 burst of upto 6 repeating signals
             if ((millis() - thisStation->lastReported > 500) && thisStation->wsp)
             {
-                printf("MQTT\n");
                 publishWS(thisStation->wsp->mqttPayload().c_str());
                 display(thisStation->wsp);
             }
@@ -576,10 +488,6 @@ void rfLoop(bool mqConn)
             //report to API's at most once per 60 seconds
             if (millis() - thisStation->lastReported > 60000)
             {
-                //struct timeval tvnow;
-                //gettimeofday(&tvnow, NULL);
-                //printf("time %ld s\n", tvnow.tv_sec);
-
                 thisStation->lastReported = millis();
                 if (thisStation->wunderground)
                 {
@@ -623,10 +531,8 @@ void rfLoop(bool mqConn)
                 if (thisStation->windguru)
                 {
                     UploadToWebAPI("www.windguru.cz", 80, false, thisStation->urlWindguru(thisStation->wgUID, thisStation->wgPW).c_str());
-                    printf("%s\n", thisStation->urlWindguru(thisStation->wgUID, thisStation->wgPW).c_str());
-                    // printf("%s\n", ws->urlWindguru("stationXY", "supersecret").c_str());
+                    //printf("%s\n", thisStation->urlWindguru(thisStation->wgUID, thisStation->wgPW).c_str());
                 }
-                printf("\n\nDone report\n");
             }
         }
     }
@@ -646,7 +552,7 @@ extern uint32_t mqPingMs;
 
 void report()
 {
-    printf("vBatt = %dmV\n", vBatt);
+    // printf("vBatt = %dmV\n", vBatt);
 
     char buf[256];
     int len = snprintf(buf, sizeof(buf),
@@ -669,7 +575,7 @@ void report()
     //printf("JSON: %s\n", buf);
 }
 
-//DEBUG wifi disconencts
+//DEBUG wifi disconnects
 void WiFiEvent(WiFiEvent_t event, system_event_info_t info)
 {
     switch (event)
@@ -680,8 +586,6 @@ void WiFiEvent(WiFiEvent_t event, system_event_info_t info)
     case SYSTEM_EVENT_STA_GOT_IP:
         printf("Connected to : %s\n", WiFi.SSID().c_str());
         printf("Got IP: %s\n", WiFi.localIP().toString().c_str());
-        //Serial.print("Got IP: ");
-        //Serial.println(WiFi.localIP());
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
         printf("Disconnected from station, attempting reconnection\n");
@@ -689,7 +593,6 @@ void WiFiEvent(WiFiEvent_t event, system_event_info_t info)
         break;
     case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:
         printf("WPS Successful, stopping WPS and connecting to: %s", WiFi.SSID().c_str());
-        //Serial.println("WPS Successful, stopping WPS and connecting to: " + WiFi.SSID());
         //esp_wifi_wps_disable();
         //delay(10);
         //WiFi.begin();
@@ -714,7 +617,6 @@ void WiFiEvent(WiFiEvent_t event, system_event_info_t info)
         }
         wps_pin[8] = '\0';
         printf("WPS_PIN = %s\n", wps_pin);
-        //Serial.println("WPS_PIN = " + wpspin2string(info.sta_er_pin.pin_code));
         break;
     default:
         break;
@@ -770,9 +672,6 @@ void setup()
     radio.txPower(rfPow);
     radio.setMode(SX1276fsk::MODE_STANDBY);
 
-    //nrw.setup();
-    //printf("pktBuf size = %d\n", pktBuffer.size());
-
     pinMode(LED_MQTT, OUTPUT);
     digitalWrite(LED_MQTT, LED_OFF);
     pinMode(LED_RF, OUTPUT);
@@ -785,44 +684,6 @@ void setup()
 #endif
 
     delay(200);
-
-    // //TODO: Remove this testcode
-    printf("stationconfig constr\n");
-    WSConfigTest myTest; //should print some json text
-    // printf("stationconfig test\n");
-    myTest.test();
-
-    std::string firstStation = myTest.ws.serialize();
-    // //WSConfig wsConfig;
-
-    // //Load the weather station configuration from flash memory
-    wsConfig.load();
-
-    // //for the moment update settings first entry from  stationconfig.h
-    wsConfig.add(firstStation);
-
-    // printf("wsconfig setup code\n");
-
-    // //check whether we can find station in list
-    // WSSetting *myStation = wsConfig.lookup(0x24, 0x3C);
-    // if (myStation)
-    // {
-    //     printf("found it: %s\n", myStation->dzURL);
-    // }
-    // else
-    // {
-    //     printf("not found\n");
-    // }
-
-    // WSSetting *myStation2 = wsConfig.lookup(0x23, 0x3C);
-    // if (myStation2)
-    // {
-    //     printf("found it: %s", myStation2->dzURL);
-    // }
-    // else
-    // {
-    //     printf("not found\n");
-    // }
 
     //Load the weather station configuration from flash memory
     wsConfig.load();
