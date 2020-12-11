@@ -163,9 +163,9 @@ public:
         printf("Instance of WSBase\n");
     };
 
-    virtual String mqttPayload()
+    virtual std::string mqttPayload()
     {
-        String sjson;
+        std::string sjson;
         DynamicJsonDocument djson(2048);
         djson["ts"] = at.tv_sec;
         djson["stType"] = msgformat;
@@ -434,14 +434,14 @@ public:
         return false;
     };
 
-    virtual String mqttPayload()
+    virtual std::string mqttPayload()
     {
         char hexstr[3 * length + 1];
         hexstr[3 * length] = 0;
         for (int j = 0; j < length; j++)
             sprintf(&hexstr[3 * j], " %02X", buf[j]);
 
-        String sjson;
+        std::string sjson;
         DynamicJsonDocument djson(2048);
         djson["ts"] = at.tv_sec;
         djson["stType"] = msgformat;

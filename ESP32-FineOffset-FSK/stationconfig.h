@@ -127,7 +127,7 @@ struct WSSetting
         return;
     }
 
-    void deserialize(String sjson)
+    void deserialize(std::string sjson)
     {
         DynamicJsonDocument djson(4096);
         DeserializationError err = deserializeJson(djson, sjson);
@@ -168,9 +168,9 @@ struct WSSetting
         return;
     }
 
-    String serialize()
+    std::string serialize()
     {
-        String sjson;
+        std::string sjson;
         DynamicJsonDocument djson(4096);
         serialize(djson.to<JsonObject>());
         if (serializeJson(djson, sjson) == 0)
@@ -180,120 +180,120 @@ struct WSSetting
         return sjson;
     }
 
-    virtual String urlWunderground(const char *wuID, const char *wuPW)
+    virtual std::string urlWunderground(const char *wuID, const char *wuPW)
     {
         //https://support.weather.com/s/article/PWS-Upload-Protocol?language=en_US
         //https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?ID=ISHERT38&PASSWORD=jHfIiiya&dateutc=now&tempf=37.8&humidity=1&action=updateraw
-        String s = "";
+        std::string s;
         return s + "/weatherstation/updateweatherstation.php?ID=" + wuID +
                "&PASSWORD=" + wuPW +
                "&dateutc=now" +
-               "&tempf=" + ((wsp->temperature * 9.0) / 5.0 + 32.0) +
-               "&humidity=" + wsp->humidity +
-               "&rainin=" + (wsp->rain1h / 25.4) +
-               "&winddir=" + wsp->winddir +
-               "&windspeedmph=" + (wsp->windspeed1m * 0.621371) +
-               "&windgustmph=" + (wsp->windgust1m * 0.621371) +
-               "&UV=" + wsp->UVI +
+               "&tempf=" + std::to_string((wsp->temperature * 9.0) / 5.0 + 32.0) +
+               "&humidity=" + std::to_string(wsp->humidity) +
+               "&rainin=" + std::to_string(wsp->rain1h / 25.4) +
+               "&winddir=" + std::to_string(wsp->winddir) +
+               "&windspeedmph=" + std::to_string(wsp->windspeed1m * 0.621371) +
+               "&windgustmph=" + std::to_string(wsp->windgust1m * 0.621371) +
+               "&UV=" + std::to_string(wsp->UVI) +
                "&action=updateraw";
     }
 
     //https://www.domoticz.com/wiki/Domoticz_API/JSON_URL's
-    virtual String urlDomoticzTemp(uint32_t idx, const char *dzID, const char *dzPW)
+    virtual std::string urlDomoticzTemp(uint32_t idx, const char *dzID, const char *dzPW)
     {
         //Note: idx is different for temp/hum and wind and uv.....
         //user and PW needs to be base64 enncoded.
         //
         ///json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=TEMP;HUM;HUM_STAT
-        String s = "/json.htm?";
+        std::string s = "/json.htm?";
         if (strlen(dzID) > 0)
         {
             s = s + "username=" + dzID + "&password=" + dzPW;
         }
-        return s + "type=command&param=udevice&idx=" + idx + "&nvalue=0&svalue=" + wsp->temperature + ";" + wsp->humidity + ";0";
+        return s + "type=command&param=udevice&idx=" + std::to_string(idx) + "&nvalue=0&svalue=" + std::to_string(wsp->temperature) + ";" + std::to_string(wsp->humidity) + ";0";
     }
 
-    virtual String urlDomoticzWind(uint32_t idx, const char *dzID, const char *dzPW)
+    virtual std::string urlDomoticzWind(uint32_t idx, const char *dzID, const char *dzPW)
     {
         //Note: idx is different for temp/hum and wind and uv.....
         //user and PW needs to be base64 enncoded.
         //
         ///json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=WB;WD;WS;WG;22;24
-        String s = "/json.htm?";
+        std::string s = "/json.htm?";
         if (strlen(dzID) > 0)
         {
             s = s + "username=" + dzID + "&password=" + dzPW;
         }
-        return s + "type=command&param=udevice&idx=" + idx +
-               "&nvalue=0&svalue=" + wsp->winddir + ";;" + (wsp->windspeed * 10 / 3.6) + ";" + (wsp->windgust * 10 / 3.6) + ";" +
-               wsp->temperature + ";0";
+        return s + "type=command&param=udevice&idx=" + std::to_string(idx) +
+               "&nvalue=0&svalue=" + std::to_string(wsp->winddir) + ";;" + std::to_string(wsp->windspeed * 10 / 3.6) + ";" + std::to_string(wsp->windgust * 10 / 3.6) + ";" +
+               std::to_string(wsp->temperature) + ";0";
     }
 
-    virtual String urlDomoticzRain(uint32_t idx, const char *dzID, const char *dzPW)
+    virtual std::string urlDomoticzRain(uint32_t idx, const char *dzID, const char *dzPW)
     {
         //Note: idx is different for temp/hum and wind and uv.....
         //user and PW needs to be base64 enncoded.
         //
         ///json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=RAINRATE;RAINCOUNTER
-        String s = "/json.htm?";
+        std::string s = "/json.htm?";
         if (strlen(dzID) > 0)
         {
             s = s + "username=" + dzID + "&password=" + dzPW;
         }
-        return s + "type=command&param=udevice&idx=" + idx + "&nvalue=0&svalue=" + (wsp->rain1h * 100) + ";" + wsp->rain;
+        return s + "type=command&param=udevice&idx=" + std::to_string(idx) + "&nvalue=0&svalue=" + std::to_string(wsp->rain1h * 100) + ";" + std::to_string(wsp->rain);
     }
 
-    virtual String urlDomoticzLight(uint32_t idx, const char *dzID, const char *dzPW)
+    virtual std::string urlDomoticzLight(uint32_t idx, const char *dzID, const char *dzPW)
     {
         //Note: idx is different for temp/hum and wind and uv.....
         //user and PW needs to be base64 enncoded.
         //
         ///json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=VALUE
-        String s = "/json.htm?";
+        std::string s = "/json.htm?";
         if (strlen(dzID) > 0)
         {
             s = s + "username=" + dzID + "&password=" + dzPW;
         }
-        return s + "type=command&param=udevice&idx=" + idx + "&nvalue=0&svalue=" + wsp->lightlux;
+        return s + "type=command&param=udevice&idx=" + std::to_string(idx) + "&nvalue=0&svalue=" + std::to_string(wsp->lightlux);
     }
 
-    virtual String urlDomoticzUV(uint32_t idx, const char *dzID, const char *dzPW)
+    virtual std::string urlDomoticzUV(uint32_t idx, const char *dzID, const char *dzPW)
     {
         //Note: idx is different for temp/hum and wind and uv.....
         //user and PW needs to be base64 enncoded.
         //
         ///json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=UV;TEMP
-        String s = "/json.htm?";
+        std::string s = "/json.htm?";
         if (strlen(dzID) > 0)
         {
             s = s + "username=" + dzID + "&password=" + dzPW;
         }
-        return s + "type=command&param=udevice&idx=" + idx + "&nvalue=0&svalue=" + wsp->UVI + ";" + wsp->temperature;
+        return s + "type=command&param=udevice&idx=" + std::to_string(idx) + "&nvalue=0&svalue=" + std::to_string(wsp->UVI) + ";" + std::to_string(wsp->temperature);
     }
 
-    virtual String urlWindguru(const char *wgUID, const char *wgPW)
+    virtual std::string urlWindguru(const char *wgUID, const char *wgPW)
     {
         ///upload/api.php?uid=stationXY&salt=20180214171400&hash=c9441d30280f4f6f4946fe2b2d360df5&wind_avg=12.5&wind_dir=165&temperature=20.5
-        String salt = String(millis());
-        //String salt = "20180214171400";
-        String key = salt + wgUID + wgPW;
-        //String key =  "20180214171400stationXYsupersecret"; //test string gives MD5: c9441d30280f4f6f4946fe2b2d360df5
+        std::string salt = std::to_string(millis());
+        //std::string salt = "20180214171400";
+        std::string key = salt + wgUID + wgPW;
+        //std::string key =  "20180214171400stationXYsupersecret"; //test string gives MD5: c9441d30280f4f6f4946fe2b2d360df5
         char *key2 = const_cast<char *>(key.c_str());
         unsigned char *hash = MD5::make_hash(key2);
         char *md5hash = MD5::make_digest(hash, 16);
         //printf("MD5 %s %s\n", key2, md5hash);
         free(hash);
 
-        String s = "";
+        std::string s = "";
         return s + "/upload/api.php?uid=" + wgUID +
                "&salt=" + salt +
                "&hash=" + md5hash +
                "&interval=60" +
-               "&wind_avg=" + (0.540 * wsp->windspeed1m) +
-               "&wind_max=" + (0.540 * wsp->windgust1m) +
-               "&wind_direction=" + wsp->winddir +
-               "&temperature=" + wsp->temperature;
-        //"&rh=" + humidity;
+               "&wind_avg=" + std::to_string(0.540 * wsp->windspeed1m) +
+               "&wind_max=" + std::to_string(0.540 * wsp->windgust1m) +
+               "&wind_direction=" + std::to_string(wsp->winddir) +
+               "&temperature=" + std::to_string(wsp->temperature);
+        //"&rh=" + std::to_string(wsp->humidity);
     }
 
     virtual void update(WSBase *data, uint8_t *pktbuf)
@@ -494,7 +494,7 @@ public:
 
     void test()
     {
-        String ser = ws.serialize();
+        std::string ser = ws.serialize();
         printf("%s\n", ser.c_str());
         wsdes.deserialize(ser);
         printf("url is %s and %s\n", ws.dzURL, wsdes.dzURL);
@@ -514,7 +514,7 @@ public:
             stations[i].serialize(ojson); //Populate the JsonObject
         }
 
-        String sjson;
+        std::string sjson;
         serializeJson(json, sjson);
         printf("array: %s\n", sjson.c_str());
 
@@ -564,7 +564,7 @@ public:
         return (idx < MAX_WS) ? stations[idx] : nullptr;
     };
 
-    void add(String sjson)
+    void add(std::string sjson)
     {
         //through MQTT message
         WSSetting newWS;
@@ -627,7 +627,7 @@ public:
         save();
     };
 
-    void remove(String sjson)
+    void remove(std::string sjson)
     {
         //through MQTT message
         WSSetting delWS;

@@ -223,24 +223,28 @@ boolean UploadToWebAPI(const char *host, int httpsPort, bool secure, const char 
     }
 
     // Use WiFiClientSecure class to create SSL connection
-    Serial.println("Connecting to   : " + String(host));
+    printf("Connecting to   : %s\n", host);
+    //Serial.println("Connecting to   : " + String(host));
     if (!client->connect(host, httpsPort))
     {
         Serial.println("Connection failed");
         return false;
     }
-    Serial.println("Requesting      : " + String(url));
+    printf("Requesting      : %s\n", url);
+    //Serial.println("Requesting      : " + String(url));
     client->print(String("GET ") + url + " HTTP/1.1\r\n" +
                   "Host: " + host + "\r\n" +
                   "User-Agent: G6EJDFailureDetectionFunction\r\n" +
                   "Connection: close\r\n\r\n");
-    Serial.print("Request sent    : ");
+    printf("Request sent    : ");
+    //Serial.print("Request sent    : ");
     while (client->connected())
     {
         String line = client->readStringUntil('\n');
         if (line == "\r")
         {
-            Serial.println("Headers received");
+           printf("Headers received\n");
+            //Serial.println("Headers received");
             break;
         }
     }
@@ -250,7 +254,8 @@ boolean UploadToWebAPI(const char *host, int httpsPort, bool secure, const char 
     while (client->available())
     {
         char c = client->read();
-        Serial.write(c);
+        printf("%c", c);
+        //Serial.write(c);
     }
 
     client->stop();
@@ -316,15 +321,17 @@ void displayTest()
 
     bool conn = WiFi.isConnected();
     bool mqConn = mqttClient.connected();
-    String statusmsg = "";
+
+    char statusmsg[64];
+    statusmsg[0]=0;
     if (conn)
-        statusmsg += "wifi ok ";
+        strcat(statusmsg, "wifi ok ");
     else
-        statusmsg += "wifi nk ";
+        strcat(statusmsg, "wifi nk ");
     if (mqConn)
-        statusmsg += "mq 2435";
+        strcat(statusmsg, "mq 2435");
     else
-        statusmsg += "mq 2435";
+        strcat(statusmsg, "mq 2435");
 
     Heltec.display->setFont(ArialMT_Plain_10);
     Heltec.display->drawString(128, 54, statusmsg);
@@ -356,15 +363,17 @@ void displayStale()
 
     bool conn = WiFi.isConnected();
     bool mqConn = mqttClient.connected();
-    String statusmsg = "---- ";
+
+    char statusmsg[64];
+    statusmsg[0] = 0;
     if (conn)
-        statusmsg += "WIFI OK, ";
+        strcat(statusmsg, "wifi ok ");
     else
-        statusmsg += "WIFI --, ";
+        strcat(statusmsg, "wifi -- ");
     if (mqConn)
-        statusmsg += "MQTT OK";
+        strcat(statusmsg, "mq ok  ");
     else
-        statusmsg += "MQTT --";
+        strcat(statusmsg, "mq --  ");
 
     Heltec.display->setFont(ArialMT_Plain_10);
     Heltec.display->drawString(0, 54, statusmsg);
@@ -411,7 +420,7 @@ void display(WSBase *wsp)
         sprintf(oledmsg, "%2.1f", value);
     Heltec.display->drawString(94, 0, oledmsg);
 
-    sprintf(oledmsg, "%ld", beaufort(wsp->windspeed));
+    sprintf(oledmsg, "%d", beaufort(wsp->windspeed));
     Heltec.display->drawString(128, 0, oledmsg);
 
     Heltec.display->setFont(ArialMT_Plain_10);
@@ -441,15 +450,17 @@ void display(WSBase *wsp)
     sprintf(oledmsg, "%02X%02X ", (wsp->msgformat & 0xFF), (wsp->stationID & 0xFF));
     bool conn = WiFi.isConnected();
     bool mqConn = mqttClient.connected();
-    String statusmsg = "";
+
+    char statusmsg[64];
+    statusmsg[0] = 0;
     if (conn)
-        statusmsg += "wifi ok mq ";
+        strcat(statusmsg, "wifi ok mq ");
     else
-        statusmsg += "wifi xx mq ";
+        strcat(statusmsg, "wifi -- mq ");
     if (mqConn)
-        statusmsg += oledmsg;
+        strncpy(statusmsg, oledmsg, 6);
     else
-        statusmsg += "xxxx";
+        strcat(statusmsg, "xxxx");
     Heltec.display->drawString(128, 54, statusmsg);
     Heltec.display->display();
 
@@ -664,38 +675,46 @@ void WiFiEvent(WiFiEvent_t event, system_event_info_t info)
     switch (event)
     {
     case SYSTEM_EVENT_STA_START:
-        Serial.println("Station Mode Started");
+        printf("Station Mode Started\n");
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
-        Serial.println("Connected to :" + String(WiFi.SSID()));
-        Serial.print("Got IP: ");
-        Serial.println(WiFi.localIP());
+        printf("Connected to : %s\n", WiFi.SSID().c_str());
+        printf("Got IP: %s\n", WiFi.localIP().toString().c_str());
+        //Serial.print("Got IP: ");
+        //Serial.println(WiFi.localIP());
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
-        Serial.println("Disconnected from station, attempting reconnection");
+        printf("Disconnected from station, attempting reconnection\n");
         WiFi.reconnect();
         break;
     case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:
-        Serial.println("WPS Successful, stopping WPS and connecting to: " + String(WiFi.SSID()));
+        printf("WPS Successful, stopping WPS and connecting to: %s", WiFi.SSID().c_str());
+        //Serial.println("WPS Successful, stopping WPS and connecting to: " + WiFi.SSID());
         //esp_wifi_wps_disable();
         //delay(10);
         //WiFi.begin();
         break;
     case SYSTEM_EVENT_STA_WPS_ER_FAILED:
-        Serial.println("WPS Failed, retrying");
+        printf("WPS Failed, retrying\n");
         //esp_wifi_wps_disable();
         //esp_wifi_wps_enable(&config);
         //esp_wifi_wps_start(0);
         break;
     case SYSTEM_EVENT_STA_WPS_ER_TIMEOUT:
-        Serial.println("WPS Timeout, retrying");
+        printf("WPS Timeout, retrying\n");
         //esp_wifi_wps_disable();
         //esp_wifi_wps_enable(&config);
         //esp_wifi_wps_start(0);
         break;
     case SYSTEM_EVENT_STA_WPS_ER_PIN:
+        char wps_pin[9];
+        for (int i = 0; i < 8; i++)
+        {
+            wps_pin[i] = info.sta_er_pin.pin_code[i];
+        }
+        wps_pin[8] = '\0';
+        printf("WPS_PIN = %s\n", wps_pin);
         //Serial.println("WPS_PIN = " + wpspin2string(info.sta_er_pin.pin_code));
-        Serial.println("WPS_PIN = ");
         break;
     default:
         break;
@@ -773,7 +792,7 @@ void setup()
     // printf("stationconfig test\n");
     myTest.test();
 
-    String firstStation = myTest.ws.serialize();
+    std::string firstStation = myTest.ws.serialize();
     // //WSConfig wsConfig;
 
     // //Load the weather station configuration from flash memory
