@@ -427,7 +427,7 @@ void display(WSBase *wsp)
     else
         strcat(statusmsg, "wifi -- mq ");
     if (mqConn)
-        strncpy(statusmsg, oledmsg, 6);
+        strcat(statusmsg, oledmsg);
     else
         strcat(statusmsg, "xxxx");
     Heltec.display->drawString(128, 54, statusmsg);
